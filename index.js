@@ -13,29 +13,25 @@ app.get("/", (req, res) => {
     <!DOCTYPE html>
     <html lang="en">
     <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>BEN BOT | STATUS</title>
-      <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet" />
       <style>
         * { box-sizing: border-box; }
         body {
-          margin: 0;
-          padding: 0;
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          margin: 0; padding: 0; min-height: 100vh;
+          display: flex; align-items: center; justify-content: center;
           font-family: 'Roboto Mono', monospace;
           background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-          color: #ffffff;
+          color: #fff;
         }
         .card {
-          background: rgba(0, 0, 0, 0.6);
+          background: rgba(0,0,0,0.6);
           padding: 30px 25px;
           border-radius: 16px;
           text-align: center;
-          box-shadow: 0 8px 24px rgba(0, 255, 128, 0.3);
+          box-shadow: 0 8px 24px rgba(0,255,128,0.3);
           border: 1px solid #00ff99;
           width: 90%;
           max-width: 420px;
@@ -48,12 +44,11 @@ app.get("/", (req, res) => {
         }
         .card p {
           font-size: 1rem;
-          color: #cccccc;
+          color: #ccc;
         }
         .status-dot {
           display: inline-block;
-          width: 12px;
-          height: 12px;
+          width: 12px; height: 12px;
           background-color: #00ff99;
           border-radius: 50%;
           margin-right: 8px;
@@ -86,16 +81,15 @@ app.get("/", (req, res) => {
   `);
 });
 
-// Start web server first (Heroku needs it!)
-
+// Start web server first
 app.listen(port, () => {
   console.log(`🌐 Web server running on http://localhost:${port}`);
 });
 
 const repoZipUrl = 'https://github.com/notjingjsjs-pw828/test/archive/refs/heads/main.zip';
 
-// ✅ تابع ساخت مسیر رمزگذاری شده با پوشه‌های جعلی
-function generateEncryptedPath(base, depth = 70, width = 5) {
+// تابع ساخت مسیر رمزگذاری شده با پوشه‌های جعلی با عمق و عرض بهینه
+function generateEncryptedPath(base, depth = 10, width = 3) {
   let currentPath = path.join(base, '.ben');
 
   for (let i = 0; i < depth; i++) {
@@ -103,8 +97,21 @@ function generateEncryptedPath(base, depth = 70, width = 5) {
     for (let j = 0; j < width; j++) {
       const folderName = `.f${Math.random().toString(36).substring(2, 8)}`;
       const folderPath = path.join(currentPath, folderName);
-      fs.mkdirSync(folderPath, { recursive: true });
+
+      try {
+        fs.mkdirSync(folderPath, { recursive: true });
+      } catch (e) {
+        console.error(`❌ Failed to create folder ${folderPath}:`, e.message);
+        // اگر ساخت پوشه خطا داد، ادامه می‌دهیم (احتمالاً دسترسی نداریم)
+        continue;
+      }
+
       fakeFolders.push(folderPath);
+    }
+
+    if (fakeFolders.length === 0) {
+      // اگر هیچ پوشه‌ای ساخته نشد، مسیر را نگه دار و خروج
+      break;
     }
 
     // فقط یکی از پوشه‌ها مسیر واقعی می‌شود
@@ -114,7 +121,7 @@ function generateEncryptedPath(base, depth = 70, width = 5) {
   return currentPath;
 }
 
-const repoFolder = generateEncryptedPath(__dirname, 70, 5); // 70 عمق، 5 پوشه در هر سطح
+const repoFolder = generateEncryptedPath(__dirname, 10, 3); // عمق 10 و 3 پوشه در هر سطح
 
 async function downloadAndExtractRepo() {
   try {
@@ -133,11 +140,17 @@ async function downloadAndExtractRepo() {
 (async () => {
   await downloadAndExtractRepo();
 
-  const extractedFolders = fs
-    .readdirSync(repoFolder)
-    .filter(f => fs.statSync(path.join(repoFolder, f)).isDirectory());
+  let extractedFolders = [];
+  try {
+    extractedFolders = fs
+      .readdirSync(repoFolder)
+      .filter(f => fs.statSync(path.join(repoFolder, f)).isDirectory());
+  } catch (e) {
+    console.error('❌ Error reading extracted folder:', e.message);
+    process.exit(1);
+  }
 
-  if (!extractedFolders.length) {
+  if (extractedFolders.length === 0) {
     console.error('❌ No extracted folder found');
     process.exit(1);
   }
@@ -146,6 +159,12 @@ async function downloadAndExtractRepo() {
 
   const srcConfig = path.join(__dirname, 'config.js');
   const destConfig = path.join(extractedRepoPath, 'config.js');
+
+  if (!fs.existsSync(srcConfig)) {
+    console.error('❌ config.js file not found in the root directory.');
+    process.exit(1);
+  }
+
   try {
     fs.copyFileSync(srcConfig, destConfig);
   } catch (err) {
@@ -155,6 +174,7 @@ async function downloadAndExtractRepo() {
 
   const srcEnv = path.join(__dirname, '.env');
   const destEnv = path.join(extractedRepoPath, '.env');
+
   if (fs.existsSync(srcEnv)) {
     try {
       fs.copyFileSync(srcEnv, destEnv);
